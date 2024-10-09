@@ -1,61 +1,94 @@
 import wx
-import cv2
-import numpy as np
+from project_manager    import ProjectManager
+from windows_capture    import CaptureWindow
+from windows_report     import ReportWindow
+from windows_projects   import WindowsProjects
+from windows_imports    import FileImporter
 
-class CameraApp(wx.Frame):
-    def __init__(self, *args, **kw):
-        super(CameraApp, self).__init__(*args, **kw)
-
-        self.cap = cv2.VideoCapture(0)  # Captura desde la cámara predeterminada
-        self.cap.set(cv2.CAP_PROP_FPS, 60)  # Configurar la tasa de fotogramas
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        self.SetDoubleBuffered(True)
-        if not self.cap.isOpened():
-            raise Exception("No se pudo abrir la cámara")
-
-        # Configurar la ventana y el panel
+class MainApp(wx.Frame):
+    def __init__(self, parent, title):
+        super().__init__(parent, title=title, size=(400, 300))
+        self.project_manager = ProjectManager()
+        
+        # Configuración de la interfaz principal
         self.panel = wx.Panel(self)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.image_ctrl = wx.StaticBitmap(self.panel)
-        self.sizer.Add(self.image_ctrl, 0, wx.ALL | wx.CENTER, 5)
+        
+        # Botones de la interfaz
+        self.create_project_button      = wx.Button(self.panel, label="Crear Proyecto", size=(200, 30))
+        self.open_capture_button        = wx.Button(self.panel, label="Capturar de Imágenes", size=(200, 30))
+        self.open_import_button         = wx.Button(self.panel, label="Importar imagenes", size=(200, 30))
+        self.create_report_button       = wx.Button(self.panel, label="Crear Informe", size=(200, 30))
+        self.save_project_button        = wx.Button(self.panel, label="Guardar Proyecto", size=(200, 30))
+        self.open_project_reader_button = wx.Button(self.panel, label="Abrir Lista de Proyectos", size=(200, 30))
 
-        # Botón para capturar una imagen
-        capture_btn = wx.Button(self.panel, label='Capturar Imagen')
-        capture_btn.Bind(wx.EVT_BUTTON, self.on_capture)
-        self.sizer.Add(capture_btn, 0, wx.ALL | wx.CENTER, 5)
+        # Añadir botones al sizer
+        self.sizer.Add(self.create_project_button, 0, wx.ALL | wx.CENTER, 5)
+        self.sizer.Add(self.open_capture_button, 0, wx.ALL | wx.CENTER, 5)
+        self.sizer.Add(self.open_import_button, 0, wx.ALL | wx.CENTER, 5)
+        self.sizer.Add(self.create_report_button, 0, wx.ALL | wx.CENTER, 5)
+        self.sizer.Add(self.save_project_button, 0, wx.ALL | wx.CENTER, 5)
+        self.sizer.Add(self.open_project_reader_button, 0, wx.ALL | wx.CENTER, 5)
 
-        # Configuración final de la ventana
-        self.panel.SetSizerAndFit(self.sizer)
-        self.Show()
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.update_frame, self.timer)
-        self.timer.Start(30)
+        # Eventos
+        self.create_project_button.Bind(wx.EVT_BUTTON, self.on_create_project)
+        self.open_capture_button.Bind(wx.EVT_BUTTON, self.open_capture_window)
+        self.open_import_button.Bind(wx.EVT_BUTTON, self.on_open_import)
+        self.create_report_button.Bind(wx.EVT_BUTTON, self.on_create_report)
+        self.save_project_button.Bind(wx.EVT_BUTTON, self.on_save_project)
+        self.open_project_reader_button.Bind(wx.EVT_BUTTON, self.on_open_project_reader)
 
-    def update_frame(self, event):
-        ret, frame = self.cap.read()
-        if ret:
-            # Convertir la imagen a formato wx
-            height, width = frame.shape[:2]
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            bitmap = wx.Bitmap.FromBuffer(width, height, image)
-            self.image_ctrl.SetBitmap(bitmap)
-            self.panel.Layout()
+        self.panel.SetSizer(self.sizer)
+        self.Centre()
 
-    def on_capture(self, event):
-        ret, frame = self.cap.read()
-        if ret:
-            date_str = wx.DateTime.Now().Format("%Y%m%d_%H%M%S")
-            cv2.imwrite(f'{date_str}.jpg', frame)  # Guardar la imagen capturada
-            print(f"Imagen capturada y guardada como '{date_str}.jpg'.")
+    def on_create_project(self, event):
+        """Crear un nuevo proyecto y abrir la ventana de captura."""
+        dialog = wx.TextEntryDialog(self, 'Nombre del nuevo proyecto:', 'Crear Proyecto')
+        if dialog.ShowModal() == wx.ID_OK:
+            project_name = dialog.GetValue()
+            institution = wx.GetTextFromUser('Nombre de la institución:', 'Crear Proyecto')
+            if project_name and institution:
+                self.project_manager.create_project(project_name, institution)
+                self.open_capture_window()
 
-    def on_close(self, event):
-        self.timer.Stop()
-        self.cap.release()
-        self.Destroy()
+    def open_capture_window(self, event=None):
+        """Abrir la ventana de captura de imágenes."""
+        if self.project_manager.active_project is None:
+            wx.MessageBox("No hay ningún proyecto activo. Crea un proyecto primero.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+        self.capture_window = CaptureWindow(self, self.project_manager)
+        self.capture_window.Show()
+
+    def on_create_report(self, event):
+        """Abrir la ventana para crear un informe."""
+        if self.project_manager.active_project is None:
+            wx.MessageBox("No hay ningún proyecto activo. Crea un proyecto primero.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+        self.report_window = ReportWindow(self, self.project_manager)
+        self.report_window.Show()
+
+    def on_save_project(self, event):
+        """Guardar el proyecto activo."""
+        active_project_name = self.project_manager.active_project
+
+        if active_project_name is None:
+            wx.MessageBox("No hay ningún proyecto activo.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+
+        # Guardar el proyecto
+        self.project_manager.save_project(active_project_name)
+        wx.MessageBox(f"Proyecto '{active_project_name}' guardado con éxito.", "Guardado", wx.OK | wx.ICON_INFORMATION)
+
+    def on_open_project_reader(self, event):
+        # Aquí llamamos a la clase WindowsProjects que ya has definido
+        projects_window = WindowsProjects(self)  # Asegúrate que el 
+        projects_window.Show()
+
+    def on_open_import(self, event):
+        self.project_manager.import_images()
 
 if __name__ == "__main__":
     app = wx.App(False)
-    frame = CameraApp(None, title="Aplicación de Cámara con WxPython y OpenCV")
-    frame.Bind(wx.EVT_CLOSE, frame.on_close)
+    frame = MainApp(None, title="Gestor de Proyectos de Imagen")
+    frame.Show()
     app.MainLoop()
