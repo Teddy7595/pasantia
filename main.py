@@ -41,6 +41,10 @@ class MainApp(wx.Frame):
         self.panel.SetSizer(self.sizer)
         self.Centre()
 
+    def on_close(self, event):
+        """Cerrar la aplicación."""
+        self.Destroy()
+
     def on_create_project(self, event):
         """Crear un nuevo proyecto y abrir la ventana de captura."""
         dialog = wx.TextEntryDialog(self, 'Nombre del nuevo proyecto:', 'Crear Proyecto')
@@ -49,7 +53,7 @@ class MainApp(wx.Frame):
             institution = wx.GetTextFromUser('Nombre de la institución:', 'Crear Proyecto')
             if project_name and institution:
                 self.project_manager.create_project(project_name, institution)
-                self.open_capture_window()
+                #self.open_capture_window()
 
     def open_capture_window(self, event=None):
         """Abrir la ventana de captura de imágenes."""
