@@ -7,7 +7,7 @@ class CaptureWindow(wx.Frame):
     def __init__(self, parent, project_manager):
         super().__init__(parent, title='Captura de Imágenes', size=(840, 680))
         self.project_manager = project_manager
-        self.camera_capture = CameraCapture()
+        self.camera_capture = None
         self.panel = wx.Panel(self)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -26,7 +26,26 @@ class CaptureWindow(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
         self.camera_running = False
-        self.start_camera()
+        self.select_camera()
+
+    def select_camera(self):
+        cameras = CameraCapture.list_cameras()
+        if not cameras:
+            wx.MessageBox("No se encontraron cámaras.", "Error", wx.OK | wx.ICON_ERROR)
+            self.Destroy()
+            return
+
+        dialog = wx.SingleChoiceDialog(self, "Seleccione una cámara", "Cámaras disponibles", [str(c) for c in cameras])
+        if dialog.ShowModal() == wx.ID_OK:
+            camera_index = int(dialog.GetStringSelection())
+            self.camera_capture = CameraCapture(camera_index)
+            if self.camera_capture.is_opened():
+                self.start_camera()
+            else:
+                wx.MessageBox("No se pudo abrir la cámara seleccionada.", "Error", wx.OK | wx.ICON_ERROR)
+                self.Destroy()
+        else:
+            self.Destroy()
 
     def start_camera(self):
         self.camera_running = True
@@ -50,5 +69,6 @@ class CaptureWindow(wx.Frame):
     def on_close(self, event):
         """Método para manejar el cierre de la ventana de captura."""
         self.camera_running = False  # Detener el bucle de la cámara
-        self.camera_capture.stop_capture()
+        if self.camera_capture:
+            self.camera_capture.stop_capture()
         self.Destroy()

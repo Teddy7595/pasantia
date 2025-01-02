@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import wx
+import db_manager
 
 class ProjectManager:
     
@@ -44,6 +45,9 @@ class ProjectManager:
         project_data = self.projects[name]
         with open(f"{os.path.dirname(__file__)}\projects\{name}.json", 'w') as file:
             json.dump(project_data, file, indent=4)  # Añadido indentación para legibilidad
+        
+        self.save_to_db()
+
         print(f"Proyecto '{name}' guardado.")
 
     def load_project(self, name):
@@ -97,3 +101,18 @@ class ProjectManager:
                 else:
                     print(f"Error al cargar la imagen desde '{path}'")
         dialog.Destroy()
+
+    def save_to_db(self):
+        try:
+            project = self.projects[self.active_project]
+            institution_id = db_manager.save_institution(project['institution'])
+            report_id = db_manager.save_report(json.dumps(project['reports'][0]))
+            if institution_id and report_id:
+                for image in project['images']:
+                    db_manager.save_image(project['name'], image, report_id, institution_id)
+                print("Proyecto guardado en la base de datos.")
+            else:
+                print("Error al guardar el proyecto en la base de datos.")
+        except Exception as e:
+            print(f"Error al guardar el proyecto en la base de datos: {e}")
+        pass

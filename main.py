@@ -91,6 +91,14 @@ class MainApp(wx.Frame):
     def on_open_import(self, event):
         self.project_manager.import_images()
 
+    def on_close(self, event):
+        """Método para manejar el cierre de la ventana principal."""
+        if self.capture_window and self.capture_window.camera_running:
+            self.capture_window.camera_running = False
+            self.capture_window.camera_capture.stop_capture()
+        self.Destroy()
+        wx.GetApp().ExitMainLoop()
+
 if __name__ == "__main__":
     app = wx.App(False)
     frame = MainApp(None, title="Gestor de Proyectos de Imagen")

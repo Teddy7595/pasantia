@@ -1,0 +1,7 @@
+{
+    "host": "localhost",
+    "user": "root",
+    "password": "taspl7595",
+    "database": "pasantia_db",
+    "port": 5432
+}
