@@ -3,7 +3,6 @@ from project_manager    import ProjectManager
 from windows_capture    import CaptureWindow
 from windows_report     import ReportWindow
 from windows_projects   import WindowsProjects
-from windows_imports    import FileImporter
 
 class MainApp(wx.Frame):
     def __init__(self, parent, title):
